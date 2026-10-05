@@ -1,0 +1,358 @@
+// Allergenly — Prisma schema
+// Postgres. NextAuth (Auth.js) Prisma-adapter models (Account/Session/
+// VerificationToken/User) follow the standard adapter shape, extended
+// with product fields (passwordHash, role, restaurant relation).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------
+
+enum UserRole {
+  OWNER
+  STAFF
+  ADMIN
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String? // null for Google-only accounts
+  // Bumped whenever passwordHash changes (reset-password, account
+  // settings). Sessions use the JWT strategy (required by the
+  // Credentials provider — there are no DB-backed Session rows to
+  // revoke), so this is what lets the session() callback reject a JWT
+  // that was issued before a password change instead of trusting it
+  // for the rest of its 30-day life. See lib/auth.ts.
+  passwordChangedAt DateTime?
+  role           UserRole  @default(OWNER)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  restaurant           Restaurant?          @relation("RestaurantOwner")
+  passwordResetTokens  PasswordResetToken[]
+  confirmedAllergens   AllergenFlag[]       @relation("ConfirmedBy")
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Password reset is intentionally separate from NextAuth's
+// VerificationToken so a reset link can't be confused with a
+// sign-in/email-verification link.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------
+// Restaurant / locations
+// ---------------------------------------------------------------------
+
+model Restaurant {
+  id           String   @id @default(cuid())
+  ownerId      String   @unique
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  contactEmail String?
+  contactPhone String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner       User                      @relation("RestaurantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  locations   Location[]
+  menus       Menu[]
+  uploads     MenuUpload[]
+  qrCodes     QRCode[]
+  activity    ActivityEvent[]
+  complianceSnapshots ComplianceScoreSnapshot[]
+
+  @@index([slug])
+}
+
+// One row roughly per day per restaurant, so the dashboard's "+N pts
+// this month" trend note (design spec §2.4) is a real comparison
+// against ~30 days ago rather than a hardcoded mockup value. Written
+// opportunistically whenever the dashboard is loaded (see
+// lib/dashboard-data.ts) — cheap, and never more than one write/day.
+model ComplianceScoreSnapshot {
+  id           String   @id @default(cuid())
+  restaurantId String
+  score        Int
+  capturedAt   DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, capturedAt])
+}
+
+model Location {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  address      String?
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menus      Menu[]
+  qrCodes    QRCode[]
+
+  @@index([restaurantId])
+}
+
+// ---------------------------------------------------------------------
+// Menus
+// ---------------------------------------------------------------------
+
+enum MenuStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Menu {
+  id           String     @id @default(cuid())
+  restaurantId String
+  locationId   String?
+  name         String     @default("Menu")
+  status       MenuStatus @default(DRAFT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  location   Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  items      MenuItem[]
+  qrCodes    QRCode[]
+  uploads    MenuUpload[]
+
+  @@index([restaurantId])
+}
+
+enum MenuCategory {
+  STARTERS
+  MAINS
+  DESSERTS
+  DRINKS
+  OTHER
+}
+
+model MenuItem {
+  id          String       @id @default(cuid())
+  menuId      String
+  name        String
+  description String?
+  priceCents  Int?
+  category    MenuCategory @default(OTHER)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  menu     Menu           @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  allergens AllergenFlag[]
+
+  @@index([menuId])
+}
+
+// The EU-14 recognized allergens.
+enum Allergen {
+  GLUTEN
+  CRUSTACEANS
+  EGGS
+  FISH
+  PEANUTS
+  SOYBEANS
+  MILK
+  NUTS
+  CELERY
+  MUSTARD
+  SESAME
+  SULPHITES
+  LUPIN
+  MOLLUSCS
+}
+
+enum AllergenStatus {
+  AUTO_DETECTED // flagged by OCR/keyword scan, awaiting staff review — "possible"
+  CONFIRMED     // manually verified present by staff
+  CLEARED       // staff reviewed and determined it does not apply
+}
+
+// One row per (menuItem, allergen) that has ever been flagged or
+// confirmed. Absence of a row = not flagged ("Safe" for that allergen).
+model AllergenFlag {
+  id            String         @id @default(cuid())
+  menuItemId    String
+  allergen      Allergen
+  status        AllergenStatus
+  source        String         @default("ocr") // "ocr" | "manual"
+  confirmedById String?
+  confirmedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  confirmedBy User?    @relation("ConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@unique([menuItemId, allergen])
+  @@index([menuItemId])
+}
+
+// ---------------------------------------------------------------------
+// Uploads / OCR processing
+// ---------------------------------------------------------------------
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model MenuUpload {
+  id           String       @id @default(cuid())
+  restaurantId String
+  menuId       String?
+  fileName     String
+  storageKey   String
+  mimeType     String
+  sizeBytes    Int
+  status       UploadStatus @default(PENDING)
+  progress     Int          @default(0)
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menu       Menu?      @relation(fields: [menuId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+}
+
+// ---------------------------------------------------------------------
+// QR codes / scan analytics
+// ---------------------------------------------------------------------
+
+model QRCode {
+  id           String   @id @default(cuid())
+  shortId      String   @unique // used in /q/{shortId}; nanoid-style, url-safe
+  restaurantId String
+  locationId   String?
+  menuId       String
+  label        String   @default("Table Menu")
+  color        String   @default("#0F766E")
+  background   String   @default("#FFFFFF")
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  location   Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  menu       Menu        @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  scans      ScanEvent[]
+
+  @@index([restaurantId])
+  @@index([shortId])
+}
+
+model ScanEvent {
+  id         String   @id @default(cuid())
+  qrCodeId   String
+  timestamp  DateTime @default(now())
+  userAgent  String?
+  referrer   String?
+  deviceType String?
+  dedupeKey  String? // hash of qrId + coarse client fingerprint, for the 30-min dedup window
+
+  qrCode QRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId, timestamp])
+  @@index([dedupeKey])
+}
+
+// ---------------------------------------------------------------------
+// Activity feed
+// ---------------------------------------------------------------------
+
+enum ActivityType {
+  MENU_UPDATED
+  ALLERGEN_FLAGGED
+  ALLERGEN_CONFIRMED
+  QR_GENERATED
+  MENU_UPLOADED
+  ACCOUNT_CREATED
+  QR_SCANNED
+}
+
+// Doubles as the in-app notification feed — the header bell reads the
+// same rows (filtered by `read`) rather than maintaining a separate
+// notifications table, since every notification IS an activity event.
+model ActivityEvent {
+  id           String       @id @default(cuid())
+  restaurantId String
+  type         ActivityType
+  title        String
+  description  String
+  read         Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, read])
+}

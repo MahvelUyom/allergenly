@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #f9fafb;
+  color: #1f2937;
+}
+
+/* Keep the filter-dropdown open/close animation on transform/opacity only
+   (perf requirement for the public menu page — no layout-property animation). */
+.dropdown-transition {
+  transition-property: transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+/* Tailwind's `fontSize` theme key only understands lineHeight/letterSpacing
+   in its tuple form — `fontWeight` (set per §1.3 of the design spec) is
+   silently ignored there, so the required weight for each type role is
+   applied here instead, as component-layer defaults. Using @layer
+   components (rather than a plain rule) keeps these BEFORE the
+   utilities layer in the compiled stylesheet, so a call site that also
+   adds an explicit font-semibold/font-bold utility still wins — this
+   only fills in the weight when nothing more specific is asked for. */
+@layer components {
+  .text-h1 {
+    font-weight: 700;
+  }
+  .text-h2 {
+    font-weight: 600;
+  }
+  .text-h3 {
+    font-weight: 600;
+  }
+  .text-label {
+    font-weight: 500;
+  }
+  .text-micro {
+    font-weight: 500;
+  }
+}
