@@ -52,10 +52,11 @@ See `.env.example` for every variable, with inline comments.
 ## Architecture notes
 
 - **Auth:** NextAuth (Auth.js) v4, Prisma adapter, JWT sessions. Credentials provider (bcrypt,
-  12 rounds) + Google OAuth. Dashboard access is granted immediately on sign-up — there is
+  12 rounds) + optional Google OAuth. Dashboard access is granted immediately on sign-up — there is
   no email-verification gate — but a verification email still fires in the background for
-  record-keeping (`POST /api/auth/signup`). There is no self-serve password reset; a locked-out
-  user needs an admin/DB-level password change via the account settings flow.
+  record-keeping (`POST /api/auth/signup`), and a full forgot/reset-password flow exists
+  (`/forgot-password`, `/reset-password`, both backed by their own short-lived token table so a
+  password-reset link is never confused with a NextAuth sign-in link).
 - **Data model:** see `prisma/schema.prisma`. One `Restaurant` per owning `User`, with
   `Location`s, `Menu`s, `MenuItem`s, and one `AllergenFlag` row per (item, allergen) pair that's
   ever been flagged — its `status` (`AUTO_DETECTED` / `CONFIRMED` / `CLEARED`) and `source`
