@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -29,7 +30,12 @@ export default async function MenusPage() {
         title="Menu Upload & Management"
         subtitle="Upload a menu, review auto-detected allergens, and confirm before publishing."
       />
-      <MenuManager initialMenus={menus} initialItems={items} />
+      {/* MenuManager reads ?item= (the search deep-link) via
+          useSearchParams(), which requires a Suspense boundary for
+          Next.js to statically prerender this page. */}
+      <Suspense fallback={null}>
+        <MenuManager initialMenus={menus} initialItems={items} />
+      </Suspense>
     </div>
   );
 }

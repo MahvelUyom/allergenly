@@ -22,3 +22,6 @@ public/uploads/logos/*
 
 # Claude Code session/tooling metadata — not project source
 .claude/
+
+.vercel
+.env*

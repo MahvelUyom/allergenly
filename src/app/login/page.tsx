@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -19,7 +20,13 @@ export default function LoginPage() {
         </>
       }
     >
-      <LoginForm />
+      {/* LoginForm reads ?callbackUrl via useSearchParams(), which
+          requires a Suspense boundary for Next.js to statically
+          prerender this page — without it, `next build` fails outright
+          (only surfaces at build time, never in `next dev`). */}
+      <Suspense fallback={<div className="h-[340px]" />}>
+        <LoginForm />
+      </Suspense>
     </AuthShell>
   );
 }

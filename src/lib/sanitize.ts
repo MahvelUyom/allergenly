@@ -1,4 +1,4 @@
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 
 /**
  * Strip all markup from a user-submitted string and normalize
@@ -9,8 +9,8 @@ import DOMPurify from "isomorphic-dompurify";
  * consumer of the data is safe by construction, not by convention.
  */
 export function sanitizePlainText(input: string): string {
-  // ALLOWED_TAGS: [] means DOMPurify strips ALL html tags/attributes and
-  // returns plain text content only.
-  const clean = DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  // allowedTags/allowedAttributes: {} means strip ALL html tags/attributes
+  // and return plain text content only.
+  const clean = sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
   return clean.replace(/\s+/g, " ").trim();
 }
