@@ -1,8 +1,8 @@
 // Minimal email sender. EMAIL_DRIVER=console (default) just logs, so
-// the password-reset and background verification-email flows are fully
-// exercisable in dev without SMTP credentials. Switch to "smtp" and
-// fill in SMTP_* to send real mail — swap the implementation below for
-// nodemailer or your provider's SDK at that point.
+// the background verification-email flow is fully exercisable in dev
+// without SMTP credentials. Switch to "smtp" and fill in SMTP_* to
+// send real mail — swap the implementation below for nodemailer or
+// your provider's SDK at that point.
 interface SendEmailInput {
   to: string;
   subject: string;
@@ -20,14 +20,6 @@ export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<
   }
 
   console.log(`[mailer] → ${to}\nSubject: ${subject}\n${html}\n`);
-}
-
-export function passwordResetEmailHtml(resetUrl: string): string {
-  return `
-    <p>Someone requested a password reset for your Allergenly account.</p>
-    <p><a href="${resetUrl}">Reset your password</a> (this link expires in 1 hour).</p>
-    <p>If you didn't request this, you can safely ignore this email.</p>
-  `;
 }
 
 export function verificationEmailHtml(verifyUrl: string): string {

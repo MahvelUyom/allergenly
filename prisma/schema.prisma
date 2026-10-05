@@ -29,8 +29,8 @@ model User {
   emailVerified  DateTime?
   image          String?
   passwordHash   String? // null for Google-only accounts
-  // Bumped whenever passwordHash changes (reset-password, account
-  // settings). Sessions use the JWT strategy (required by the
+  // Bumped whenever passwordHash changes (account settings). Sessions
+  // use the JWT strategy (required by the
   // Credentials provider — there are no DB-backed Session rows to
   // revoke), so this is what lets the session() callback reject a JWT
   // that was issued before a password change instead of trusting it
@@ -43,7 +43,6 @@ model User {
   accounts             Account[]
   sessions             Session[]
   restaurant           Restaurant?          @relation("RestaurantOwner")
-  passwordResetTokens  PasswordResetToken[]
   confirmedAllergens   AllergenFlag[]       @relation("ConfirmedBy")
 
   @@index([email])
@@ -83,22 +82,6 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-// Password reset is intentionally separate from NextAuth's
-// VerificationToken so a reset link can't be confused with a
-// sign-in/email-verification link.
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 // ---------------------------------------------------------------------

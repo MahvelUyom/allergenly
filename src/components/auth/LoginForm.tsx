@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { OrDivider, GoogleButton } from "./AuthBits";
@@ -60,14 +59,9 @@ export function LoginForm() {
         autoComplete="email"
       />
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <label htmlFor="password" className="text-label text-charcoal">
-            Password
-          </label>
-          <Link href="/forgot-password" className="text-micro text-primary">
-            Forgot password?
-          </Link>
-        </div>
+        <label htmlFor="password" className="mb-1.5 block text-label text-charcoal">
+          Password
+        </label>
         <Input
           id="password"
           type="password"
