@@ -13,7 +13,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!data) return { title: "Menu not found" };
 
   const { restaurant } = data;
-  const title = `${restaurant.name} Menu — Allergen Info | Allergenly`;
+  // No "| Allergenly" suffix here — the root layout's title template
+  // (`%s | Allergenly`) already appends it; adding it here doubled up.
+  const title = `${restaurant.name} Menu — Allergen Info`;
   const description = `View the allergen-checked menu for ${restaurant.name}, powered by Allergenly. Filter dishes by allergen to find what's safe for you.`;
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const url = `${base}/m/${restaurant.slug}`;
