@@ -1,22 +1,37 @@
+import nodemailer from "nodemailer";
+
 // Minimal email sender. EMAIL_DRIVER=console (default) just logs, so
 // the password-reset and background verification-email flows are fully
 // exercisable in dev without SMTP credentials. Switch to "smtp" and
-// fill in SMTP_* to send real mail — swap the implementation below for
-// nodemailer or your provider's SDK at that point.
+// fill in SMTP_* to send real mail (configured for Outlook/Office365:
+// SMTP_HOST=smtp-mail.outlook.com, SMTP_PORT=587, SMTP_USER=full
+// outlook address, SMTP_PASSWORD=an app password, not the account
+// password — Microsoft requires one once 2-step verification is on).
 interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
 }
 
+let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function getTransporter() {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      // Port 465 is implicit TLS; 587 (Outlook's port) negotiates TLS via STARTTLS.
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    });
+  }
+  return transporter;
+}
+
 export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<void> {
   if (process.env.EMAIL_DRIVER === "smtp") {
-    // Intentionally not implemented in this build — wire up nodemailer
-    // (or your provider's API) here using SMTP_HOST/PORT/USER/PASSWORD
-    // from the environment. Falling through to console logging keeps
-    // the app functional rather than throwing if this is reached
-    // before that's done.
-    console.warn("[mailer] EMAIL_DRIVER=smtp but no SMTP implementation is wired up yet.");
+    await getTransporter().sendMail({ from: process.env.EMAIL_FROM, to, subject, html });
+    return;
   }
 
   console.log(`[mailer] → ${to}\nSubject: ${subject}\n${html}\n`);

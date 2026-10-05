@@ -99,7 +99,7 @@ Everything in the build brief's security section is implemented, not deferred:
 
 - **Validation:** every form/route shares one Zod schema (`src/lib/zod-schemas.ts`) between
   client-side UX validation and server-side re-validation — the server never trusts client input.
-- **Sanitization:** `sanitizePlainText` (DOMPurify, strip-to-text) runs on menu item names/
+- **Sanitization:** `sanitizePlainText` (sanitize-html, strip-to-text) runs on menu item names/
   descriptions and restaurant profile fields before they're stored.
 - **Auth on every write route:** dashboard/menu/settings routes call `requireRestaurantSession()`
   (`src/lib/session.ts`), which derives the restaurant id from the session/JWT — an id in the
