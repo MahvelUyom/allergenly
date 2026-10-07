@@ -32,11 +32,21 @@ export async function POST(req: NextRequest) {
         },
       });
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/reset-password?token=${token}`;
-      sendEmail({
-        to: user.email,
-        subject: "Reset your Allergenly password",
-        html: passwordResetEmailHtml(resetUrl),
-      }).catch((err) => console.error("Failed to send reset email", err));
+      // Must be awaited, not fire-and-forget: on Vercel's serverless
+      // runtime the function can freeze/terminate right after the
+      // response is sent, which would silently kill an in-flight SMTP
+      // connection before it ever delivers. A send failure still isn't
+      // surfaced to the caller (same {ok:true} either way), so this
+      // doesn't weaken the anti-enumeration behavior above.
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Reset your Allergenly password",
+          html: passwordResetEmailHtml(resetUrl),
+        });
+      } catch (err) {
+        console.error("Failed to send reset email", err);
+      }
     }
 
     return NextResponse.json({ ok: true }, { status: 200, headers });

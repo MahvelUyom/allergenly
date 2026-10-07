@@ -1,4 +1,20 @@
+import { signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
+
+// NextAuth links a new OAuth account to whichever session is already
+// active in the browser at callback time, rather than always treating
+// "Continue with Google" as "sign in as this identity" — if a stale
+// session cookie is still present (the login/signup pages are
+// reachable while authenticated; there's no redirect-away guard),
+// signing in with a different Google account silently attaches it to
+// the OLD session's user instead of creating/finding its own, landing
+// the browser on someone else's dashboard. Signing out first removes
+// that stale session so the callback always resolves by account/email
+// instead.
+export async function signInWithGoogle() {
+  await signOut({ redirect: false });
+  await signIn("google", { callbackUrl: "/dashboard" });
+}
 
 export function OrDivider() {
   return (

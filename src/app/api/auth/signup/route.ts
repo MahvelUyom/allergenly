@@ -82,11 +82,19 @@ export async function POST(req: NextRequest) {
     const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/auth/verify?token=${verifyToken}&email=${encodeURIComponent(
       user.email
     )}`;
-    sendEmail({
-      to: user.email,
-      subject: "Verify your Allergenly account",
-      html: verificationEmailHtml(verifyUrl),
-    }).catch((err) => console.error("Failed to send verification email", err));
+    // Must be awaited, not fire-and-forget — see the equivalent note in
+    // forgot-password/route.ts: Vercel can freeze/terminate the function
+    // right after the response is sent, silently killing an in-flight
+    // SMTP connection before it delivers.
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your Allergenly account",
+        html: verificationEmailHtml(verifyUrl),
+      });
+    } catch (err) {
+      console.error("Failed to send verification email", err);
+    }
 
     return NextResponse.json({ ok: true }, { status: 201, headers });
   } catch (error) {

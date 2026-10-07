@@ -55,6 +55,12 @@ export const authOptions: AuthOptions = {
           GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            // Without this, Google silently reuses whichever Google
+            // account the browser already has an active session for,
+            // instead of showing the account chooser — so "Continue
+            // with Google" can sign a user into an account they didn't
+            // intend to pick, with zero indication it happened.
+            authorization: { params: { prompt: "select_account" } },
           }),
         ]
       : []),

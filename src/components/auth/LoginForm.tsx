@@ -6,7 +6,7 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { OrDivider, GoogleButton } from "./AuthBits";
+import { OrDivider, GoogleButton, signInWithGoogle } from "./AuthBits";
 import { loginSchema } from "@/lib/zod-schemas";
 
 export function LoginForm() {
@@ -85,7 +85,7 @@ export function LoginForm() {
       </Button>
 
       <OrDivider />
-      <GoogleButton onClick={() => signIn("google", { callbackUrl: "/dashboard" })} />
+      <GoogleButton onClick={signInWithGoogle} />
     </form>
   );
 }
