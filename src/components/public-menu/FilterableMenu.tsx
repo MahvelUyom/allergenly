@@ -6,26 +6,11 @@ import { ChevronDownIcon } from "@/components/ui/icons";
 import { formatPriceCents } from "@/lib/format";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/public-menu-data";
 import { cn } from "@/lib/cn";
-import type { Allergen } from "@prisma/client";
+import { MENU_FILTERS as FILTERS, listsAllergen } from "@/lib/menu-filters";
 import type { MenuItemWithAllergens } from "@/types/menu";
-
-const FILTERS: { value: string; label: string; allergen?: Allergen }[] = [
-  { value: "all", label: "All items" },
-  { value: "gluten", label: "Gluten-free", allergen: "GLUTEN" },
-  { value: "dairy", label: "Dairy-free", allergen: "MILK" },
-  { value: "nut", label: "Nut-free", allergen: "NUTS" },
-  { value: "shellfish", label: "Shellfish-free", allergen: "CRUSTACEANS" },
-  { value: "soy", label: "Soy-free", allergen: "SOYBEANS" },
-  { value: "egg", label: "Egg-free", allergen: "EGGS" },
-];
 
 interface FilterableMenuProps {
   items: MenuItemWithAllergens[];
-}
-
-function isUnsafeFor(item: MenuItemWithAllergens, allergen?: Allergen): boolean {
-  if (!allergen) return false;
-  return item.allergens.some((f) => f.allergen === allergen && f.status !== "CLEARED");
 }
 
 export function FilterableMenu({ items }: FilterableMenuProps) {
@@ -50,7 +35,7 @@ export function FilterableMenu({ items }: FilterableMenuProps) {
     <div>
       {/* Filter bar */}
       <div className="relative mb-8">
-        <label className="mb-2 block text-label text-charcoal">Show items safe for:</label>
+        <label className="mb-2 block text-label text-charcoal">Dim dishes that list:</label>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -90,6 +75,13 @@ export function FilterableMenu({ items }: FilterableMenuProps) {
             ))}
           </ul>
         )}
+
+        {activeFilter.allergens.length > 0 && (
+          <p className="mt-2 text-micro text-charcoal/70">
+            A dish that isn&apos;t dimmed may still contain traces or have touched this allergen in the
+            kitchen. Always check with your server.
+          </p>
+        )}
       </div>
 
       {/* Menu body */}
@@ -99,13 +91,13 @@ export function FilterableMenu({ items }: FilterableMenuProps) {
             <h2 className="text-h2 text-charcoal">{CATEGORY_LABELS[section.category] ?? section.category}</h2>
             <div className="mt-4 flex flex-col gap-5">
               {section.items.map((item) => {
-                const unsafe = isUnsafeFor(item, activeFilter.allergen);
+                const dimmed = listsAllergen(item.allergens, activeFilter.allergens);
                 return (
                   <div
                     key={item.id}
                     className={cn(
                       "min-h-[64px] border-b border-border pb-5 last:border-b-0 transition-opacity",
-                      unsafe && "pointer-events-none opacity-40"
+                      dimmed && "pointer-events-none opacity-40"
                     )}
                   >
                     <div className="flex items-baseline justify-between gap-3">
@@ -119,7 +111,7 @@ export function FilterableMenu({ items }: FilterableMenuProps) {
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {item.allergens.filter((f) => f.status !== "CLEARED").length === 0 ? (
-                        <SafeChip label="Safe for common allergens" />
+                        <SafeChip label="No major allergens listed" />
                       ) : (
                         item.allergens
                           .filter((f) => f.status !== "CLEARED")
@@ -133,9 +125,9 @@ export function FilterableMenu({ items }: FilterableMenuProps) {
                           ))
                       )}
                     </div>
-                    {unsafe && (
+                    {dimmed && (
                       <p className="mt-2 text-micro font-medium text-danger">
-                        May not be safe for your selected filter
+                        Lists an allergen you selected
                       </p>
                     )}
                   </div>

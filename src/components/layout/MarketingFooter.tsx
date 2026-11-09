@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { InstagramIcon, TikTokIcon } from "@/components/ui/icons";
+
+const SOCIAL_LINKS = [
+  { href: "https://www.instagram.com/allergenly_", label: "Allergenly on Instagram", icon: InstagramIcon },
+  { href: "https://www.tiktok.com/@allergenly", label: "Allergenly on TikTok", icon: TikTokIcon },
+];
 
 interface MarketingFooterProps {
   activeLegal?: "terms" | "cookies";
@@ -15,6 +21,20 @@ export function MarketingFooter({ activeLegal }: MarketingFooterProps) {
             <p className="mt-4 max-w-xs text-body text-white/70">
               Allergen detection and QR digital menus for restaurants — free, full stop.
             </p>
+            <div className="mt-6 flex gap-4">
+              {SOCIAL_LINKS.map(({ href, label, icon: Icon }) => (
+                <a
+                  key={href}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="text-white/70 hover:text-white"
+                >
+                  <Icon size={22} aria-hidden="true" />
+                </a>
+              ))}
+            </div>
           </div>
 
           <FooterColumn

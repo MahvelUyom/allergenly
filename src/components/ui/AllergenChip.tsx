@@ -19,12 +19,12 @@ interface AllergenChipProps {
   status: ChipState;
   /** Public-menu copy uses "X (may contain)" instead of the dashboard's plain allergen name. */
   mayContainWording?: boolean;
-  label?: string; // overrides the derived label entirely (e.g. "Safe for common allergens")
+  label?: string; // overrides the derived label entirely (e.g. "No major allergens listed")
   className?: string;
 }
 
 export function AllergenChip({ allergen, status, mayContainWording, label, className }: AllergenChipProps) {
-  const baseLabel = label ?? (allergen ? allergenLabel(allergen) : status === "SAFE" ? "Safe" : "");
+  const baseLabel = label ?? (allergen ? allergenLabel(allergen) : status === "SAFE" ? "No allergens listed" : "");
   const display =
     status === "AUTO_DETECTED" && mayContainWording && allergen
       ? `${baseLabel} (may contain)`
@@ -45,6 +45,6 @@ export function AllergenChip({ allergen, status, mayContainWording, label, class
   );
 }
 
-export function SafeChip({ label = "Safe", className }: { label?: string; className?: string }) {
+export function SafeChip({ label = "No allergens listed", className }: { label?: string; className?: string }) {
   return <AllergenChip status="SAFE" label={label} className={className} />;
 }

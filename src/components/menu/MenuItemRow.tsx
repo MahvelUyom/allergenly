@@ -28,7 +28,7 @@ export function MenuItemRow({ item, active, onEdit, onDelete }: MenuItemRowProps
         {item.description && <p className="mt-1 text-micro text-charcoal/70">{item.description}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           {item.allergens.length === 0 ? (
-            <SafeChip />
+            <SafeChip label="None detected" />
           ) : (
             item.allergens.map((flag) => (
               <AllergenChip key={flag.id} allergen={flag.allergen} status={flag.status} />

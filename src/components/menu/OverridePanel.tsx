@@ -3,13 +3,20 @@
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { AllergenChip, SafeChip } from "@/components/ui/AllergenChip";
-import { CORE_ALLERGENS, allergenLabel } from "@/lib/allergens";
+import { EU14_ALLERGENS, allergenLabel } from "@/lib/allergens";
 import { cn } from "@/lib/cn";
 import type { MenuItemWithAllergens } from "@/types/menu";
 import type { Allergen, AllergenStatus } from "@prisma/client";
 
 type PendingStatus = Extract<AllergenStatus, "CONFIRMED" | "CLEARED">;
 type Flag = MenuItemWithAllergens["allergens"][number];
+
+// The row already names the allergen, so the chip states what staff decided.
+const STATUS_LABELS: Record<AllergenStatus, string> = {
+  AUTO_DETECTED: "Detected",
+  CONFIRMED: "Present",
+  CLEARED: "Not present",
+};
 
 interface OverridePanelProps {
   item: MenuItemWithAllergens;
@@ -20,7 +27,7 @@ interface OverridePanelProps {
   saving?: boolean;
 }
 
-// Clicking a row cycles it: Safe/auto-detected → Confirmed → Cleared →
+// Clicking a row cycles it: not flagged/auto-detected → Confirmed → Cleared →
 // Confirmed → … Staff can always flip between "this allergen is
 // present" and "reviewed, not present" — there's no path back to an
 // un-reviewed state once a human has looked at it, which is the point
@@ -45,7 +52,8 @@ export function OverridePanel({ item, pending, onStage, onSave, saving }: Overri
         <div>
           <h3 className="text-h3 text-charcoal">Editing: {item.name}</h3>
           <p className="mt-1 text-micro text-charcoal/56">
-            Toggle each allergen to confirm or clear what Allergenly detected.
+            Automatic detection can miss allergens, so check all 14 against the recipe. Click an allergen to
+            mark it present, and click again to mark it not present.
           </p>
         </div>
         <Button variant="primary" size="sm" onClick={onSave} disabled={!hasPending || saving} className="shrink-0">
@@ -54,7 +62,7 @@ export function OverridePanel({ item, pending, onStage, onSave, saving }: Overri
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CORE_ALLERGENS.map((allergen) => {
+        {EU14_ALLERGENS.map((allergen) => {
           const savedFlag = flagByAllergen.get(allergen);
           const pendingStatus = pending[allergen];
           const displayStatus: AllergenStatus | undefined = pendingStatus ?? savedFlag?.status;
@@ -78,9 +86,9 @@ export function OverridePanel({ item, pending, onStage, onSave, saving }: Overri
             >
               <span className="text-label text-charcoal">{allergenLabel(allergen)}</span>
               {displayStatus ? (
-                <AllergenChip allergen={allergen} status={displayStatus} />
+                <AllergenChip status={displayStatus} label={STATUS_LABELS[displayStatus]} />
               ) : (
-                <SafeChip />
+                <SafeChip label="Not flagged" />
               )}
             </button>
           );

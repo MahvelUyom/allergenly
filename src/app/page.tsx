@@ -5,20 +5,12 @@ import { Card } from "@/components/ui/Card";
 import { AllergenChip } from "@/components/ui/AllergenChip";
 import { LogoMark } from "@/components/ui/Logo";
 import {
-  ShieldCheckIcon,
   UploadIcon,
   MagnifierCheckIcon,
   QrIcon,
   DashboardIcon,
   AnalyticsIcon,
 } from "@/components/ui/icons";
-
-const TRUST_BADGES = [
-  "FDA allergen labeling aligned",
-  "EU FIC 1169/2011 aligned",
-  "HACCP-friendly workflow",
-  "SOC 2 data handling",
-];
 
 const HOW_IT_WORKS = [
   {
@@ -100,30 +92,10 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex flex-col gap-3">
-            <MenuPreviewRow name="Grilled Salmon Bowl" price="$18" chip={<AllergenChip status="CONFIRMED" allergen="CRUSTACEANS" />} />
+            <MenuPreviewRow name="Grilled Salmon Bowl" price="$18" chip={<AllergenChip status="CONFIRMED" allergen="FISH" />} />
             <MenuPreviewRow name="Garden Herb Salad" price="$12" chip={<AllergenChip status="SAFE" />} />
           </div>
         </Card>
-      </section>
-
-      {/* Trust badges */}
-      <section className="bg-bg py-14">
-        <div className="mx-auto max-w-[1200px] px-6 text-center">
-          <p className="text-label font-semibold uppercase tracking-widest text-charcoal/56">
-            Built for food-safety compliance
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            {TRUST_BADGES.map((badge) => (
-              <span
-                key={badge}
-                className="inline-flex items-center gap-2 rounded-pill border border-border bg-white px-5 py-2.5 text-label text-charcoal"
-              >
-                <ShieldCheckIcon size={16} className="text-success" />
-                {badge}
-              </span>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* How it works */}

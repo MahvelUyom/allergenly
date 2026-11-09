@@ -31,19 +31,6 @@ export const EU14_ALLERGENS: Allergen[] = [
   "MOLLUSCS",
 ];
 
-// The 6 "core" allergens shown in the Menu Upload manual-override panel
-// per design spec §2.5 (3-column x 2-row grid). The other 8 EU-14
-// allergens are still tracked in the data model and surfaced as chips,
-// just not in that specific fixed grid.
-export const CORE_ALLERGENS: Allergen[] = [
-  "GLUTEN",
-  "MILK",
-  "NUTS",
-  "CRUSTACEANS",
-  "SOYBEANS",
-  "EGGS",
-];
-
 export const ALLERGEN_LABELS: Record<Allergen, string> = {
   GLUTEN: "Gluten",
   CRUSTACEANS: "Shellfish",
