@@ -21,6 +21,16 @@ interface MenuManagerProps {
 
 type PendingStatus = Extract<AllergenStatus, "CONFIRMED" | "CLEARED">;
 
+const GONE_MESSAGE = "That dish had already been deleted, so it's been removed from your list.";
+
+// The server's own reason when it gives one, so a failure says why
+// (e.g. an expired login) instead of a generic "didn't save".
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Your session has expired. Please log in again.";
+  const data = await res.json().catch(() => ({}));
+  return typeof data?.error === "string" && data.error ? data.error : fallback;
+}
+
 export function MenuManager({ initialMenus, initialItems, publicMenuPath }: MenuManagerProps) {
   const searchParams = useSearchParams();
   const [menus, setMenus] = useState(initialMenus);
@@ -69,9 +79,9 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     }));
   }, [activeItemId]);
 
-  const handleDeleteItem = useCallback(async (id: string) => {
-    const res = await fetch(`/api/menu-items/${id}`, { method: "DELETE" });
-    if (!res.ok) return;
+  // Drop a dish from the on-screen list (after deleting it, or on finding
+  // it no longer exists on the server, e.g. deleted in another tab).
+  const removeItemLocally = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
     setActiveItemId((cur) => (cur === id ? null : cur));
     setPendingByItem((prev) => {
@@ -81,10 +91,26 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     });
   }, []);
 
+  const handleDeleteItem = useCallback(async (id: string) => {
+    setError(null);
+    const res = await fetch(`/api/menu-items/${id}`, { method: "DELETE" });
+    // 404 means it's already gone (double click, another tab): remove it
+    // here too rather than leaving a dish on screen that can't be saved.
+    if (res.ok || res.status === 404) {
+      removeItemLocally(id);
+      return;
+    }
+    setError(await errorMessage(res, "Couldn't delete that dish. Please try again."));
+  }, [removeItemLocally]);
+
   const handleDeleteMenu = useCallback(
     async (menuId: string) => {
+      setError(null);
       const res = await fetch(`/api/menus/${menuId}`, { method: "DELETE" });
-      if (!res.ok) return;
+      if (!res.ok && res.status !== 404) {
+        setError(await errorMessage(res, "Couldn't delete that menu. Please try again."));
+        return;
+      }
       const deletedItemIds = new Set(items.filter((i) => i.menuId === menuId).map((i) => i.id));
       setMenus((prev) => prev.filter((m) => m.id !== menuId));
       setItems((prev) => prev.filter((i) => i.menuId !== menuId));
@@ -164,26 +190,32 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
       // the item's full current allergen list, so the final write
       // wins and there's no risk of merging stale partial state.
       let latestItem: MenuItemWithAllergens | null = null;
-      let failed = false;
+      let failure: string | null = null;
       for (const [allergen, status] of edits) {
         const res = await fetch(`/api/menu-items/${activeItemId}/allergens`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ allergen, status }),
         });
+        if (res.status === 404) {
+          // The dish no longer exists (deleted elsewhere): stop retrying it.
+          removeItemLocally(activeItemId);
+          setError(GONE_MESSAGE);
+          return false;
+        }
         if (res.ok) {
           const data = await res.json();
           latestItem = data.item as MenuItemWithAllergens;
-        } else {
-          failed = true;
+        } else if (!failure) {
+          failure = await errorMessage(res, "Some changes didn't save. Please try again.");
         }
       }
       if (latestItem) {
         const finalItem = latestItem;
         setItems((prev) => prev.map((i) => (i.id === activeItemId ? finalItem : i)));
       }
-      if (failed) {
-        setReviewError("Some changes didn't save. Please try again.");
+      if (failure) {
+        setReviewError(failure);
         return false;
       }
       setPendingByItem((prev) => {
@@ -198,7 +230,7 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     } finally {
       setSaving(false);
     }
-  }, [activeItemId, pendingByItem]);
+  }, [activeItemId, pendingByItem, removeItemLocally]);
 
   const handleMarkReviewed = useCallback(async () => {
     if (!activeItemId) return;
@@ -206,11 +238,16 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     setReviewError(null);
     try {
       const res = await fetch(`/api/menu-items/${activeItemId}/review`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setReviewError(data.error || "Couldn't mark this dish as reviewed. Please try again.");
+      if (res.status === 404) {
+        removeItemLocally(activeItemId);
+        setError(GONE_MESSAGE);
         return;
       }
+      if (!res.ok) {
+        setReviewError(await errorMessage(res, "Couldn't mark this dish as reviewed. Please try again."));
+        return;
+      }
+      const data = await res.json();
       const next = items.map((i) => (i.id === activeItemId ? (data.item as MenuItemWithAllergens) : i));
       setItems(next);
       // Move straight on to the next dish on the same menu that still
@@ -226,7 +263,7 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     } finally {
       setSaving(false);
     }
-  }, [activeItemId, items]);
+  }, [activeItemId, items, removeItemLocally]);
 
   const handleSaveAndReview = useCallback(async () => {
     if (await handleSave()) await handleMarkReviewed();
