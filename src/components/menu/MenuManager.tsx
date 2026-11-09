@@ -150,10 +150,11 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
     }
   }, []);
 
-  const handleSave = useCallback(async () => {
-    if (!activeItemId) return;
+  // Returns true when every staged edit saved.
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!activeItemId) return false;
     const edits = Object.entries(pendingByItem[activeItemId] ?? {}) as [Allergen, PendingStatus][];
-    if (edits.length === 0) return;
+    if (edits.length === 0) return true;
 
     setSaving(true);
     setReviewError(null);
@@ -183,15 +184,17 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
       }
       if (failed) {
         setReviewError("Some changes didn't save. Please try again.");
-      } else {
-        setPendingByItem((prev) => {
-          const next = { ...prev };
-          delete next[activeItemId];
-          return next;
-        });
+        return false;
       }
+      setPendingByItem((prev) => {
+        const next = { ...prev };
+        delete next[activeItemId];
+        return next;
+      });
+      return true;
     } catch {
       setReviewError("Some changes didn't save. Please try again.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -224,6 +227,10 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
       setSaving(false);
     }
   }, [activeItemId, items]);
+
+  const handleSaveAndReview = useCallback(async () => {
+    if (await handleSave()) await handleMarkReviewed();
+  }, [handleSave, handleMarkReviewed]);
 
   const handlePublish = useCallback(async (menuId: string, published: boolean) => {
     setPublishingMenuId(menuId);
@@ -350,6 +357,7 @@ export function MenuManager({ initialMenus, initialItems, publicMenuPath }: Menu
                         onStage={handleStage}
                         onSave={handleSave}
                         onMarkReviewed={handleMarkReviewed}
+                        onSaveAndReview={handleSaveAndReview}
                         saving={saving}
                         error={reviewError}
                       />
