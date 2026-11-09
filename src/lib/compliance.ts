@@ -9,13 +9,11 @@ import { AllergenStatus } from "@prisma/client";
 // interpretation; the choices below are flagged as sensible defaults
 // rather than blocking on it, per the build brief.
 //
-//   ConfirmedRatio = items with >=1 manual allergen review ÷ total items
-//     "Manual review" = an AllergenFlag with source "manual" (covers
-//     both a staff CONFIRMED and a staff CLEARED action — both mean a
-//     human looked at that allergen for that item, which is the thing
-//     this ratio is meant to reward). An item with zero allergens ever
-//     detected and zero manual reviews does NOT count here — it hasn't
-//     actually been reviewed, even though it has nothing to flag.
+//   ConfirmedRatio = items staff have marked reviewed ÷ total items
+//     Uses MenuItem.reviewedAt, the same signal that decides whether a
+//     dish reaches diners. A dish with nothing detected counts once it
+//     has been reviewed, and a dish with one manual flag but no finished
+//     review does not.
 //
 //   CoverageRatio = items with zero unresolved AUTO_DETECTED flags ÷ total
 //     An item with no flags at all (nothing was ever detected on it)
@@ -35,6 +33,7 @@ export interface ComplianceFlagInput {
 
 export interface ComplianceItemInput {
   id: string;
+  reviewedAt: Date | null;
   flags: ComplianceFlagInput[];
 }
 
@@ -73,8 +72,10 @@ export function computeComplianceScore(
   let lastReviewedAt: Date | null = null;
 
   for (const item of items) {
-    const hasManualReview = item.flags.some((f) => f.source === "manual");
-    if (hasManualReview) confirmedItems += 1;
+    if (item.reviewedAt) {
+      confirmedItems += 1;
+      if (!lastReviewedAt || item.reviewedAt > lastReviewedAt) lastReviewedAt = item.reviewedAt;
+    }
 
     const hasUnresolved = item.flags.some((f) => f.status === "AUTO_DETECTED");
     if (!hasUnresolved) coveredItems += 1;

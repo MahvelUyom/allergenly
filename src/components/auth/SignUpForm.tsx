@@ -117,7 +117,7 @@ export function SignUpForm() {
             Terms &amp; Conditions
           </Link>{" "}
           and{" "}
-          <Link href="/legal/cookie-policy" className="text-primary underline">
+          <Link href="/legal/privacy" className="text-primary underline">
             Privacy Policy
           </Link>
         </span>

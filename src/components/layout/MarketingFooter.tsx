@@ -8,7 +8,7 @@ const SOCIAL_LINKS = [
 ];
 
 interface MarketingFooterProps {
-  activeLegal?: "terms" | "cookies";
+  activeLegal?: "terms" | "cookies" | "privacy";
 }
 
 export function MarketingFooter({ activeLegal }: MarketingFooterProps) {
@@ -56,6 +56,7 @@ export function MarketingFooter({ activeLegal }: MarketingFooterProps) {
             title="Legal"
             links={[
               { href: "/legal/terms", label: "Terms & Conditions" },
+              { href: "/legal/privacy", label: "Privacy Policy" },
               { href: "/legal/cookie-policy", label: "Cookie Policy" },
             ]}
           />
@@ -74,9 +75,9 @@ export function MarketingFooter({ activeLegal }: MarketingFooterProps) {
                 Terms
               </Link>
               <Link
-                href="/legal/cookie-policy"
+                href="/legal/privacy"
                 className={`text-micro ${
-                  activeLegal === "cookies" ? "text-white" : "text-white/60 hover:text-white"
+                  activeLegal === "privacy" ? "text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 Privacy

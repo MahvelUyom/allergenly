@@ -66,8 +66,9 @@ export async function POST(req: NextRequest) {
           orderBy: { sortOrder: "asc" },
         })
       : [];
+    const menu = completed.menuId ? await prisma.menu.findUnique({ where: { id: completed.menuId } }) : null;
 
-    return NextResponse.json({ upload: completed, items }, { status: 201, headers });
+    return NextResponse.json({ upload: completed, items, menu }, { status: 201, headers });
   } catch (error) {
     return handleApiError(error);
   }

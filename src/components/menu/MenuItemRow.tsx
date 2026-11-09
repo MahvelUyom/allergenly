@@ -13,6 +13,7 @@ interface MenuItemRowProps {
 }
 
 export function MenuItemRow({ item, active, onEdit, onDelete }: MenuItemRowProps) {
+  const reviewed = Boolean(item.reviewedAt);
   return (
     <div
       className={cn(
@@ -21,14 +22,15 @@ export function MenuItemRow({ item, active, onEdit, onDelete }: MenuItemRowProps
       )}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-2">
           <p className="text-label font-semibold text-charcoal">{item.name}</p>
           {item.priceCents != null && <p className="text-micro text-charcoal/56">{formatPriceCents(item.priceCents)}</p>}
+          <AllergenChip status={reviewed ? "CLEARED" : "AUTO_DETECTED"} label={reviewed ? "Reviewed" : "Needs review"} />
         </div>
         {item.description && <p className="mt-1 text-micro text-charcoal/70">{item.description}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           {item.allergens.length === 0 ? (
-            <SafeChip label="None detected" />
+            <SafeChip label={reviewed ? "No allergens listed" : "None detected yet"} />
           ) : (
             item.allergens.map((flag) => (
               <AllergenChip key={flag.id} allergen={flag.allergen} status={flag.status} />
@@ -39,7 +41,7 @@ export function MenuItemRow({ item, active, onEdit, onDelete }: MenuItemRowProps
 
       <div className="flex shrink-0 items-center gap-2">
         <Button variant={active ? "primary" : "ghost"} size="sm" onClick={() => onEdit(item.id)}>
-          {active ? "Editing" : "Edit"}
+          {active ? "Reviewing" : reviewed ? "Edit" : "Review"}
         </Button>
         <DeleteButton label={`"${item.name}"`} onConfirm={() => onDelete(item.id)} />
       </div>

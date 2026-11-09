@@ -45,6 +45,7 @@ model User {
   restaurant           Restaurant?          @relation("RestaurantOwner")
   passwordResetTokens  PasswordResetToken[]
   confirmedAllergens   AllergenFlag[]       @relation("ConfirmedBy")
+  reviewedMenuItems    MenuItem[]           @relation("ReviewedBy")
 
   @@index([email])
 }
@@ -172,6 +173,7 @@ model Menu {
   locationId   String?
   name         String     @default("Menu")
   status       MenuStatus @default(DRAFT)
+  publishedAt  DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -200,11 +202,17 @@ model MenuItem {
   priceCents  Int?
   category    MenuCategory @default(OTHER)
   sortOrder   Int          @default(0)
+  // Set when staff attest they checked this dish against all 14 allergens.
+  // Null = not reviewed, and the dish is never shown on the public menu.
+  // Cleared again whenever the dish's text or allergen flags change.
+  reviewedAt   DateTime?
+  reviewedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  menu     Menu           @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  allergens AllergenFlag[]
+  menu       Menu           @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  reviewedBy User?          @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  allergens  AllergenFlag[]
 
   @@index([menuId])
 }

@@ -24,7 +24,9 @@ interface OverridePanelProps {
   pending: Partial<Record<Allergen, PendingStatus>>;
   onStage: (allergen: Allergen, nextStatus: PendingStatus) => void;
   onSave: () => void;
+  onMarkReviewed: () => void;
   saving?: boolean;
+  error?: string | null;
 }
 
 // Clicking a row cycles it: not flagged/auto-detected → Confirmed → Cleared →
@@ -39,12 +41,13 @@ function nextStatus(current: AllergenStatus | undefined): PendingStatus {
   return "CONFIRMED";
 }
 
-export function OverridePanel({ item, pending, onStage, onSave, saving }: OverridePanelProps) {
+export function OverridePanel({ item, pending, onStage, onSave, onMarkReviewed, saving, error }: OverridePanelProps) {
   // Explicit tuple return type — without it, `.map(f => [f.allergen, f])`
   // infers a plain (Allergen | Flag)[] array rather than a [Allergen,
   // Flag] tuple, which makes `new Map(...)` fall back to Map<{}, {}>.
   const flagByAllergen = new Map<Allergen, Flag>(item.allergens.map((f): [Allergen, Flag] => [f.allergen, f]));
   const hasPending = Object.keys(pending).length > 0;
+  const unresolved = item.allergens.filter((f) => f.status === "AUTO_DETECTED").length;
 
   return (
     <Card className="border-[1.5px] border-primary p-6">
@@ -101,6 +104,30 @@ export function OverridePanel({ item, pending, onStage, onSave, saving }: Overri
           click Save changes to confirm.
         </p>
       )}
+
+      <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-micro text-charcoal/70">
+          {item.reviewedAt
+            ? "Reviewed. Changing an allergen hides this dish from your public menu until you review it again."
+            : hasPending
+            ? "Save your changes, then mark this dish reviewed."
+            : unresolved > 0
+            ? `Mark the ${unresolved} detected ${unresolved === 1 ? "allergen" : "allergens"} as present or not present to finish.`
+            : "Marking this reviewed confirms your staff checked this dish against all 14 allergens."}
+        </p>
+        {!item.reviewedAt && (
+          <Button
+            size="sm"
+            className="shrink-0"
+            disabled={saving || hasPending || unresolved > 0}
+            onClick={onMarkReviewed}
+          >
+            Mark reviewed
+          </Button>
+        )}
+      </div>
+
+      {error && <p className="mt-4 text-micro font-medium text-danger">{error}</p>}
     </Card>
   );
 }

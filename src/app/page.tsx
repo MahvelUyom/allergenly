@@ -65,20 +65,25 @@ export default function LandingPage() {
       <section className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-16 px-6 py-20 md:grid-cols-2 md:py-28">
         <div>
           <p className="text-label font-semibold uppercase tracking-widest text-primary">
-            Allergen &amp; menu compliance
+            Allergen menus for restaurants
           </p>
           <h1 className="mt-4 text-h1 text-charcoal md:text-[40px]">
             Scan your menu for allergens. Generate QR menus in minutes.
           </h1>
           <p className="mt-6 text-body text-charcoal/70">
-            Upload your menu, review AI-detected allergens, and publish a mobile-friendly QR menu
-            — all in one free platform built for restaurant compliance.
+            Upload your menu, let AI flag likely allergens, confirm each dish with your staff, and publish a
+            mobile-friendly QR menu — all in one free platform.
           </p>
           <div className="mt-8">
             <ButtonLink href="/signup" variant="primary">
               Get Started
             </ButtonLink>
           </div>
+          <p className="mt-6 max-w-md text-micro text-charcoal/56">
+            Allergenly helps you find and show allergen information. Automatic detection can miss things, so
+            your staff must check every dish before it goes live, and your restaurant stays responsible for
+            its accuracy.
+          </p>
         </div>
 
         <Card className="p-6">
@@ -102,7 +107,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="mx-auto w-full max-w-[1200px] px-6 py-24">
         <div className="text-center">
           <h2 className="text-h2 text-charcoal">How Allergenly works</h2>
-          <p className="mt-3 text-body text-charcoal/70">Three steps from raw menu to allergen-safe QR menu.</p>
+          <p className="mt-3 text-body text-charcoal/70">Three steps from raw menu to a QR menu with allergen information.</p>
         </div>
         <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
           {HOW_IT_WORKS.map((item) => (
@@ -120,9 +125,9 @@ export default function LandingPage() {
       <section id="features" className="bg-bg py-24">
         <div className="mx-auto max-w-[1200px] px-6">
           <div className="text-center">
-            <h2 className="text-h2 text-charcoal">Everything you need to stay compliant</h2>
+            <h2 className="text-h2 text-charcoal">Everything you need to manage allergen information</h2>
             <p className="mt-3 text-body text-charcoal/70">
-              One platform for allergen review, digital menus, and the analytics to prove it.
+              One platform for allergen review, digital menus, and scan analytics.
             </p>
           </div>
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -140,7 +145,7 @@ export default function LandingPage() {
       {/* CTA banner */}
       <section className="bg-primary py-20">
         <div className="mx-auto max-w-[720px] px-6 text-center">
-          <h2 className="text-h2 text-white">Ready to make your menu allergen-safe?</h2>
+          <h2 className="text-h2 text-white">Ready to put allergen information on your menu?</h2>
           <p className="mt-3 text-body text-white/85">
             Free to use, full stop — no card required to get started.
           </p>

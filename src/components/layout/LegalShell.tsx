@@ -12,7 +12,7 @@ interface LegalShellProps {
   title: string;
   lastUpdated: string;
   sections: LegalSection[];
-  activeLegal: "terms" | "cookies";
+  activeLegal: "terms" | "cookies" | "privacy";
   children: React.ReactNode;
 }
 

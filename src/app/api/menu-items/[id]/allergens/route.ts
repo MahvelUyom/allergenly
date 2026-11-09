@@ -25,23 +25,31 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json();
     const { allergen, status } = allergenOverrideSchema.parse({ ...body, menuItemId: params.id });
 
-    const flag = await prisma.allergenFlag.upsert({
-      where: { menuItemId_allergen: { menuItemId: params.id, allergen } },
-      create: {
-        menuItemId: params.id,
-        allergen,
-        status,
-        source: "manual",
-        confirmedById: userId,
-        confirmedAt: new Date(),
-      },
-      update: {
-        status,
-        source: "manual",
-        confirmedById: userId,
-        confirmedAt: new Date(),
-      },
-    });
+    // Any allergen change voids the dish's review, which also hides it
+    // from the public menu until staff review it again.
+    const [flag] = await prisma.$transaction([
+      prisma.allergenFlag.upsert({
+        where: { menuItemId_allergen: { menuItemId: params.id, allergen } },
+        create: {
+          menuItemId: params.id,
+          allergen,
+          status,
+          source: "manual",
+          confirmedById: userId,
+          confirmedAt: new Date(),
+        },
+        update: {
+          status,
+          source: "manual",
+          confirmedById: userId,
+          confirmedAt: new Date(),
+        },
+      }),
+      prisma.menuItem.update({
+        where: { id: params.id },
+        data: { reviewedAt: null, reviewedById: null },
+      }),
+    ]);
 
     if (status === "CONFIRMED") {
       await prisma.activityEvent.create({

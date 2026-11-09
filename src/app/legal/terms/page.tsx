@@ -117,8 +117,8 @@ export default function TermsPage() {
       <Section id="contact" title="Contact us">
         <p>
           Questions about these terms? Email us at{" "}
-          <a href="mailto:legal@allergenly.app" className="text-primary underline">
-            legal@allergenly.app
+          <a href="mailto:allergenly@gmail.com" className="text-primary underline">
+            allergenly@gmail.com
           </a>
           .
         </p>

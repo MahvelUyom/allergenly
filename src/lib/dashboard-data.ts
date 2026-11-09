@@ -20,11 +20,14 @@ export async function getComplianceScoreForRestaurant(restaurantId: string): Pro
     where: { menu: { restaurantId } },
     select: {
       id: true,
+      reviewedAt: true,
       allergens: { select: { status: true, source: true, confirmedAt: true, updatedAt: true } },
     },
   });
 
-  const result = computeComplianceScore(items.map((i) => ({ id: i.id, flags: i.allergens })));
+  const result = computeComplianceScore(
+    items.map((i) => ({ id: i.id, reviewedAt: i.reviewedAt, flags: i.allergens }))
+  );
   const trendPts = await recordSnapshotAndGetTrend(restaurantId, result.score);
 
   return { ...result, trendPts };

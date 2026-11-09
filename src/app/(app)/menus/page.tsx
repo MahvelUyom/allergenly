@@ -12,7 +12,8 @@ export default async function MenusPage() {
   const session = await getServerSession(authOptions);
   const restaurantId = session!.user.restaurantId!;
 
-  const [menus, items] = await Promise.all([
+  const [restaurant, menus, items] = await Promise.all([
+    prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { slug: true } }),
     prisma.menu.findMany({
       where: { restaurantId },
       orderBy: { createdAt: "asc" },
@@ -34,7 +35,7 @@ export default async function MenusPage() {
           useSearchParams(), which requires a Suspense boundary for
           Next.js to statically prerender this page. */}
       <Suspense fallback={null}>
-        <MenuManager initialMenus={menus} initialItems={items} />
+        <MenuManager initialMenus={menus} initialItems={items} publicMenuPath={`/m/${restaurant.slug}`} />
       </Suspense>
     </div>
   );

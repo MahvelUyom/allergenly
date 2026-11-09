@@ -4,6 +4,9 @@ import { getPublicMenuBySlug } from "@/lib/public-menu-data";
 import { FilterableMenu } from "@/components/public-menu/FilterableMenu";
 import { LogoMark } from "@/components/ui/Logo";
 
+// Allergen data must never be served stale from a cache.
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: { slug: string };
 }
@@ -16,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // No "| Allergenly" suffix here — the root layout's title template
   // (`%s | Allergenly`) already appends it; adding it here doubled up.
   const title = `${restaurant.name} Menu — Allergen Info`;
-  const description = `View the allergen-checked menu for ${restaurant.name}, powered by Allergenly. Filter dishes by allergen to find what's safe for you.`;
+  const description = `See the menu for ${restaurant.name} with allergen information from the restaurant, powered by Allergenly. Filter dishes by the allergens they list.`;
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const url = `${base}/m/${restaurant.slug}`;
 
@@ -85,7 +88,7 @@ export default async function PublicMenuPage({ params }: PageProps) {
           <LogoMark size={52} variant="circle" />
           <h1 className="mt-4 text-h1 text-charcoal">{restaurant.name}</h1>
           <p className="mt-1 text-body text-charcoal/70">
-            {location?.name ?? "Menu"} · Allergen-checked menu
+            {location?.name ?? "Menu"} · Allergen information from the restaurant
           </p>
         </header>
 
@@ -94,9 +97,12 @@ export default async function PublicMenuPage({ params }: PageProps) {
         </div>
 
         <footer className="mt-14 pb-6 text-center">
-          <p className="text-micro text-charcoal/56">
-            Menu powered by Allergenly · Always tell your server about severe allergies
+          <p className="text-micro text-charcoal/70">
+            Allergen information is provided and reviewed by {restaurant.name}. Recipes change and kitchens
+            handle many ingredients, so traces are always possible. Tell your server about any allergy before
+            you order.
           </p>
+          <p className="mt-3 text-micro text-charcoal/56">Menu powered by Allergenly</p>
         </footer>
       </div>
     </div>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Dropzone } from "./Dropzone";
 import { ProcessingCard } from "./ProcessingCard";
 import { MenuItemRow } from "./MenuItemRow";
 import { OverridePanel } from "./OverridePanel";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { UploadIcon } from "@/components/ui/icons";
 import type { MenuItemWithAllergens } from "@/types/menu";
@@ -16,11 +16,12 @@ import type { Allergen, AllergenStatus, Menu } from "@prisma/client";
 interface MenuManagerProps {
   initialMenus: Menu[];
   initialItems: MenuItemWithAllergens[];
+  publicMenuPath: string;
 }
 
 type PendingStatus = Extract<AllergenStatus, "CONFIRMED" | "CLEARED">;
 
-export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
+export function MenuManager({ initialMenus, initialItems, publicMenuPath }: MenuManagerProps) {
   const searchParams = useSearchParams();
   const [menus, setMenus] = useState(initialMenus);
   const [items, setItems] = useState(initialItems);
@@ -30,6 +31,9 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
   const [uploadingFile, setUploadingFile] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<{ menuId: string; message: string } | null>(null);
+  const [publishingMenuId, setPublishingMenuId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showDropzone, setShowDropzone] = useState(items.length === 0);
   // Local, unsaved allergen-toggle edits for whichever item is being
@@ -53,6 +57,7 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
   }, [items]);
 
   const handleEdit = useCallback((id: string) => {
+    setReviewError(null);
     setActiveItemId((current) => (current === id ? null : id));
   }, []);
 
@@ -94,10 +99,10 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
     setUploadingFile(file.name);
     setProgress(8);
 
-    // Simulated incremental progress while the (fast, keyword-based)
-    // pipeline actually runs server-side — real per-step progress would
-    // come from polling a status endpoint once processing moves to a
-    // background job (see lib/menu-processing.ts's doc comment).
+    // Simulated incremental progress while the pipeline runs
+    // server-side — real per-step progress would come from polling a
+    // status endpoint once processing moves to a background job (see
+    // lib/menu-processing.ts's doc comment).
     progressTimer.current = setInterval(() => {
       setProgress((p) => (p < 88 ? p + Math.random() * 12 : p));
     }, 220);
@@ -129,7 +134,11 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
           return [...withoutThatMenu, ...data.items];
         });
         if (menuId) {
-          setMenus((prev) => (prev.some((m) => m.id === menuId) ? prev : [...prev, { id: menuId, name: "Menu" } as Menu]));
+          setMenus((prev) =>
+            prev.some((m) => m.id === menuId)
+              ? prev
+              : [...prev, (data.menu ?? { id: menuId, name: "Menu", status: "DRAFT" }) as Menu]
+          );
         }
         setUploadingFile(null);
         setShowDropzone(false);
@@ -147,12 +156,14 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
     if (edits.length === 0) return;
 
     setSaving(true);
+    setReviewError(null);
     try {
       // Commit every staged toggle for this item, then apply the
       // server's response for each in turn — the API always returns
       // the item's full current allergen list, so the final write
       // wins and there's no risk of merging stale partial state.
       let latestItem: MenuItemWithAllergens | null = null;
+      let failed = false;
       for (const [allergen, status] of edits) {
         const res = await fetch(`/api/menu-items/${activeItemId}/allergens`, {
           method: "POST",
@@ -162,21 +173,79 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
         if (res.ok) {
           const data = await res.json();
           latestItem = data.item as MenuItemWithAllergens;
+        } else {
+          failed = true;
         }
       }
       if (latestItem) {
         const finalItem = latestItem;
         setItems((prev) => prev.map((i) => (i.id === activeItemId ? finalItem : i)));
       }
-      setPendingByItem((prev) => {
-        const next = { ...prev };
-        delete next[activeItemId];
-        return next;
-      });
+      if (failed) {
+        setReviewError("Some changes didn't save. Please try again.");
+      } else {
+        setPendingByItem((prev) => {
+          const next = { ...prev };
+          delete next[activeItemId];
+          return next;
+        });
+      }
+    } catch {
+      setReviewError("Some changes didn't save. Please try again.");
     } finally {
       setSaving(false);
     }
   }, [activeItemId, pendingByItem]);
+
+  const handleMarkReviewed = useCallback(async () => {
+    if (!activeItemId) return;
+    setSaving(true);
+    setReviewError(null);
+    try {
+      const res = await fetch(`/api/menu-items/${activeItemId}/review`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setReviewError(data.error || "Couldn't mark this dish as reviewed. Please try again.");
+        return;
+      }
+      const next = items.map((i) => (i.id === activeItemId ? (data.item as MenuItemWithAllergens) : i));
+      setItems(next);
+      // Move straight on to the next dish on the same menu that still
+      // needs a review, so staff can work down the list.
+      const current = next.find((i) => i.id === activeItemId);
+      const sameMenu = next.filter((i) => i.menuId === current?.menuId);
+      const idx = sameMenu.findIndex((i) => i.id === activeItemId);
+      const nextUnreviewed =
+        sameMenu.slice(idx + 1).find((i) => !i.reviewedAt) ?? sameMenu.find((i) => !i.reviewedAt);
+      setActiveItemId(nextUnreviewed?.id ?? null);
+    } catch {
+      setReviewError("Couldn't mark this dish as reviewed. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [activeItemId, items]);
+
+  const handlePublish = useCallback(async (menuId: string, published: boolean) => {
+    setPublishingMenuId(menuId);
+    setPublishError(null);
+    try {
+      const res = await fetch(`/api/menus/${menuId}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMenus((prev) => prev.map((m) => (m.id === menuId ? { ...m, ...data.menu } : m)));
+      } else {
+        setPublishError({ menuId, message: data.error || "Couldn't update your menu. Please try again." });
+      }
+    } catch {
+      setPublishError({ menuId, message: "Couldn't update your menu. Please try again." });
+    } finally {
+      setPublishingMenuId(null);
+    }
+  }, []);
 
   const menusWithItems = menus.filter((m) => (itemsByMenu.get(m.id)?.length ?? 0) > 0);
 
@@ -200,8 +269,45 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
 
       {menusWithItems.map((menu) => {
         const menuItems = itemsByMenu.get(menu.id) ?? [];
+        const unreviewed = menuItems.filter((i) => !i.reviewedAt).length;
+        const published = menu.status === "PUBLISHED";
         return (
           <Card key={menu.id} className="overflow-hidden p-0">
+            <div className="flex flex-col gap-3 border-b border-border bg-bg px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-label font-semibold text-charcoal">
+                  {published ? "Live: diners can see this menu" : "Not live yet"}
+                </p>
+                <p className="mt-1 text-micro text-charcoal/70">
+                  {published
+                    ? unreviewed > 0
+                      ? `Diners can't see ${unreviewed} ${unreviewed === 1 ? "dish" : "dishes"} until reviewed.`
+                      : "Diners can see every dish below."
+                    : unreviewed > 0
+                    ? `Review ${unreviewed} more ${unreviewed === 1 ? "dish" : "dishes"} to publish. Diners can't see this menu until then.`
+                    : "Every dish is reviewed. Publish to make this menu visible to diners."}
+                </p>
+                {publishError?.menuId === menu.id && (
+                  <p className="mt-2 text-micro font-medium text-danger">{publishError.message}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 gap-3">
+                {published && (
+                  <ButtonLink href={publicMenuPath} target="_blank" rel="noopener noreferrer" variant="ghost" size="sm">
+                    View menu
+                  </ButtonLink>
+                )}
+                <Button
+                  size="sm"
+                  variant={published ? "secondary" : "primary"}
+                  disabled={publishingMenuId === menu.id || (!published && unreviewed > 0)}
+                  onClick={() => handlePublish(menu.id, !published)}
+                >
+                  {published ? "Unpublish" : "Publish menu"}
+                </Button>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
               <div>
                 <h3 className="text-h3 text-charcoal">
@@ -229,28 +335,32 @@ export function MenuManager({ initialMenus, initialItems }: MenuManagerProps) {
             </div>
             <div>
               {menuItems.map((item) => (
-                <MenuItemRow
-                  key={item.id}
-                  item={item}
-                  active={item.id === activeItemId}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteItem}
-                />
+                <Fragment key={item.id}>
+                  <MenuItemRow
+                    item={item}
+                    active={item.id === activeItemId}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteItem}
+                  />
+                  {activeItem && activeItem.id === item.id && (
+                    <div className="border-b border-border bg-bg p-4">
+                      <OverridePanel
+                        item={activeItem}
+                        pending={activePending}
+                        onStage={handleStage}
+                        onSave={handleSave}
+                        onMarkReviewed={handleMarkReviewed}
+                        saving={saving}
+                        error={reviewError}
+                      />
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
           </Card>
         );
       })}
-
-      {activeItem && (
-        <OverridePanel
-          item={activeItem}
-          pending={activePending}
-          onStage={handleStage}
-          onSave={handleSave}
-          saving={saving}
-        />
-      )}
     </div>
   );
 }

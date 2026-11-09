@@ -6,11 +6,14 @@ export async function getPublicMenuBySlug(slug: string) {
     include: {
       locations: { take: 1, orderBy: { createdAt: "asc" } },
       menus: {
-        where: { status: { in: ["PUBLISHED", "DRAFT"] } }, // draft menus are still viewable pre-launch; flip to PUBLISHED-only once a publish flow gates this
+        where: { status: "PUBLISHED" },
         orderBy: { createdAt: "asc" },
         take: 1,
         include: {
           items: {
+            // Diners only ever see dishes staff have reviewed. Dishes added
+            // or edited after publishing stay hidden until re-reviewed.
+            where: { reviewedAt: { not: null } },
             orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
             include: { allergens: true },
           },
@@ -19,7 +22,7 @@ export async function getPublicMenuBySlug(slug: string) {
     },
   });
 
-  if (!restaurant || restaurant.menus.length === 0) return null;
+  if (!restaurant || restaurant.menus.length === 0 || restaurant.menus[0].items.length === 0) return null;
 
   return { restaurant, menu: restaurant.menus[0] };
 }

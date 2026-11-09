@@ -39,7 +39,13 @@ async function main() {
   ]);
 
   const menu = await prisma.menu.create({
-    data: { restaurantId: restaurant.id, locationId: downtown.id, name: "Main Menu", status: "PUBLISHED" },
+    data: {
+      restaurantId: restaurant.id,
+      locationId: downtown.id,
+      name: "Main Menu",
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
   });
 
   const sampleItems: {
@@ -71,23 +77,31 @@ async function main() {
     }
   }
 
-  // Manually confirm/clear a couple of allergens to populate the
-  // dashboard's compliance score with something realistic.
-  const salmon = await prisma.menuItem.findFirstOrThrow({ where: { menuId: menu.id, name: "Grilled Salmon Bowl" } });
-  const salmonFlags = await prisma.allergenFlag.findMany({ where: { menuItemId: salmon.id } });
-  for (const flag of salmonFlags) {
-    await prisma.allergenFlag.update({
-      where: { id: flag.id },
-      data: { status: "CONFIRMED", source: "manual", confirmedById: user.id, confirmedAt: new Date() },
-    });
-  }
-
-  const macAndCheese = await prisma.menuItem.findFirstOrThrow({ where: { menuId: menu.id, name: "Truffle Mac & Cheese" } });
-  const macFlag = await prisma.allergenFlag.findFirst({ where: { menuItemId: macAndCheese.id, allergen: "MILK" } });
-  if (macFlag) {
-    await prisma.allergenFlag.update({
-      where: { id: macFlag.id },
-      data: { status: "CONFIRMED", source: "manual", confirmedById: user.id, confirmedAt: new Date() },
+  // Review most dishes so the demo has a live public menu, and leave two
+  // pending so the dashboard and the "needs review" state have something
+  // to show. Those two stay hidden from the public menu.
+  const stillPending = ["Thai Green Curry", "Classic Beef Burger"];
+  const toReview = await prisma.menuItem.findMany({
+    where: { menuId: menu.id, name: { notIn: stillPending } },
+    include: { allergens: true },
+  });
+  for (const item of toReview) {
+    for (const flag of item.allergens) {
+      // "Flourless" trips the "flour" keyword: a false positive staff would clear.
+      const isFalsePositive = item.name === "Flourless Chocolate Cake" && flag.allergen === "GLUTEN";
+      await prisma.allergenFlag.update({
+        where: { id: flag.id },
+        data: {
+          status: isFalsePositive ? "CLEARED" : "CONFIRMED",
+          source: "manual",
+          confirmedById: user.id,
+          confirmedAt: new Date(),
+        },
+      });
+    }
+    await prisma.menuItem.update({
+      where: { id: item.id },
+      data: { reviewedAt: new Date(), reviewedById: user.id },
     });
   }
 

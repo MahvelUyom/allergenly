@@ -90,8 +90,8 @@ export default function CookiePolicyPage() {
       <Section id="contact" title="Contact us">
         <p>
           Questions about this policy? Email us at{" "}
-          <a href="mailto:privacy@allergenly.app" className="text-primary underline">
-            privacy@allergenly.app
+          <a href="mailto:allergenly@gmail.com" className="text-primary underline">
+            allergenly@gmail.com
           </a>
           .
         </p>

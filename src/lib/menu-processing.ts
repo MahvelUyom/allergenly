@@ -64,6 +64,11 @@ export async function processMenuUpload(uploadId: string): Promise<void> {
         : (await prisma.menu.create({ data: { restaurantId: upload.restaurantId, name: "Main Menu" } })).id;
     }
 
+    // Append after whatever the menu already has, so a second upload's
+    // dishes don't interleave with the first upload's.
+    const { _max } = await prisma.menuItem.aggregate({ where: { menuId }, _max: { sortOrder: true } });
+    const startOrder = (_max.sortOrder ?? -1) + 1;
+
     let flaggedCount = 0;
     const flaggedNames: string[] = [];
     for (const [index, parsed] of parsedItems.entries()) {
@@ -74,7 +79,7 @@ export async function processMenuUpload(uploadId: string): Promise<void> {
           description: parsed.description,
           priceCents: parsed.priceCents,
           category: parsed.category,
-          sortOrder: index,
+          sortOrder: startOrder + index,
         },
       });
 
