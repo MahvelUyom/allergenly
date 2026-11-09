@@ -16,6 +16,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!data) return { title: "Menu not found" };
 
   const { restaurant } = data;
+  if (!data.menu) {
+    return { title: `${restaurant.name} Menu`, robots: { index: false } };
+  }
   // No "| Allergenly" suffix here — the root layout's title template
   // (`%s | Allergenly`) already appends it; adding it here doubled up.
   const title = `${restaurant.name} Menu — Allergen Info`;
@@ -47,6 +50,7 @@ export default async function PublicMenuPage({ params }: PageProps) {
   if (!data) notFound();
 
   const { restaurant, menu } = data;
+  if (!menu) return <MenuNotLive restaurantName={restaurant.name} />;
   const location = restaurant.locations[0];
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -104,6 +108,26 @@ export default async function PublicMenuPage({ params }: PageProps) {
           </p>
           <p className="mt-3 text-micro text-charcoal/56">Menu powered by Allergenly</p>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+// Shown when a diner scans a QR code for a restaurant whose menu isn't
+// published yet. A dead-end 404 at the table helps nobody; this tells the
+// diner what to do instead.
+function MenuNotLive({ restaurantName }: { restaurantName: string }) {
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex max-w-[480px] flex-col items-center px-5 py-16 text-center">
+        <LogoMark size={52} variant="circle" />
+        <h1 className="mt-4 text-h1 text-charcoal">{restaurantName}</h1>
+        <p className="mt-6 text-h3 text-charcoal">This menu isn&apos;t available yet</p>
+        <p className="mt-3 text-body text-charcoal/70">
+          The restaurant is still preparing its allergen information. Please ask your server about any
+          allergies before you order.
+        </p>
+        <p className="mt-14 text-micro text-charcoal/56">Menu powered by Allergenly</p>
       </div>
     </div>
   );
